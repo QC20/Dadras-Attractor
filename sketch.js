@@ -24,7 +24,7 @@ function setup() {
 	colorMode(HSB);
 	background(255);
 	
-	for (i = 0; i < dots; i++) {
+	for (var i = 0; i < dots; i++) {
 		x[i] = (random(-10, 10));
 		y[i] = (random(-10, 10));
 		z[i] = (random(-10, 10));
@@ -40,15 +40,15 @@ function draw() {
 		strokeWeight(1);
 	}
 	
-	for (i = 0; i < dots; i++) {
+	for (var i = 0; i < dots; i++) {
 
 		px[i] = x[i];
 		py[i] = y[i];
 		pz[i] = z[i];
 		stroke(i%360, 100, 100);
-    nx[i] = y[i] - p*x[i] + o*y[i]*z[i];
-    ny[i] = q*y[i] - x[i]*z[i] + z[i];
-    nz[i] = c*x[i]*y[i] - e*z[i];
+		nx[i] = y[i] - p*x[i] + o*y[i]*z[i];
+		ny[i] = q*y[i] - x[i]*z[i] + z[i];
+		nz[i] = c*x[i]*y[i] - e*z[i];
 		
 		x[i] += nx[i]*dt;
 		y[i] += ny[i]*dt;
@@ -88,5 +88,5 @@ function draw() {
 }
 
 function mouseClicked(){
-  save("img_" + month() + '-' + day() + '_' + hour() + '-' + minute() + '-' + second() + ".jpg");
+	save("img_" + month() + '-' + day() + '_' + hour() + '-' + minute() + '-' + second() + ".jpg");
 }
