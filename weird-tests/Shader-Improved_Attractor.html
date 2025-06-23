@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+	<style>
+		html,
+		body {
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+		}
+	</style>
+</head>
+
+<body>
+	<script>
+		// ===== ENHANCED SYSTEM PARAMETERS =====
+		var dots = 10000;
+		var x = new Array(dots);
+		var y = new Array(dots);
+		var z = new Array(dots);
+		var nx = new Array(dots);
+		var ny = new Array(dots);
+		var nz = new Array(dots);
+		var px = new Array(dots);
+		var py = new Array(dots);
+		var pz = new Array(dots);
+		
+		// NEW: Additional arrays for Runge-Kutta integration
+		var k1x = new Array(dots), k1y = new Array(dots), k1z = new Array(dots);
+		var k2x = new Array(dots), k2y = new Array(dots), k2z = new Array(dots);
+		var k3x = new Array(dots), k3y = new Array(dots), k3z = new Array(dots);
+		var k4x = new Array(dots), k4y = new Array(dots), k4z = new Array(dots);
+		
+		// NEW: Velocity arrays for collision detection
+		var vx = new Array(dots);
+		var vy = new Array(dots);
+		var vz = new Array(dots);
+		
+		var dt = 0.002;
+		var r = 20;
+		var l = 0;
+		var s = 1;
+		var per = "xz";
+		var p = 3;
+		var o = 2.7;
+		var q = 1.7;
+		var c = 2;
+		var e = 9;
+
+		// Camera/view controls
+		var rotationX = 0;
+		var rotationY = 0;
+		var zoom = 1;
+		var isDragging = false;
+		var lastMouseX = 0;
+		var lastMouseY = 0;
+		var centerX, centerY;
+		
+		// NEW: Performance monitoring and adaptive quality
+		var frameTimeHistory = [];
+		var targetFPS = 60;
+		var adaptiveQuality = true;
+		var currentDots = dots;
+		var performanceCheckInterval = 60; // Check every 60 frames
+		var frameCounter = 0;
+		
+		// NEW: Collision detection parameters
+		var enableCollisions = false;
+		var collisionRadius = 0.5;
+		var bounceStrength = 0.8;
+		var spatialGrid = {};
+		var gridSize = 2.0;
+		
+		// NEW: Boundary collision parameters
+		var enableBoundaries = true;
+		var boundarySize = 15;
+		var boundaryBounce = 0.9;
+		
+		// NEW: Integration method selector
+		var integrationMethod = "rk4"; // "euler" or "rk4"
+
+		function setup() {
+			createCanvas(windowWidth, windowHeight);
+			colorMode(HSB);
+			background(255);
+			
+			centerX = width / 2;
+			centerY = height / 2;
+			
+			// Initialize particle positions and velocities
+			for (var i = 0; i < dots; i++) {
+				x[i] = (random(-10, 10));
+				y[i] = (random(-10, 10));
+				z[i] = (random(-10, 10));
+				// NEW: Initialize velocities to zero
+				vx[i] = 0;
+				vy[i] = 0;
+				vz[i] = 0;
+			}
+			
+			console.log("Enhanced Chaotic Attractor initialized");
+			console.log("Press 'c' to toggle collisions, 'b' to toggle boundaries, 'm' to change integration method");
+		}
+
+		function draw() {
+			// NEW: Performance monitoring
+			var startTime = millis();
+			
+			if (l === 0) {
+				background(255);
+			}
+			
+			if (s === 0) {
+				strokeWeight(1);
+			}
+			
+			// NEW: Clear spatial grid for collision detection
+			if (enableCollisions) {
+				spatialGrid = {};
+			}
+			
+			// Apply transformations
+			push();
+			translate(centerX, centerY);
+			scale(zoom);
+			
+			// NEW: Choose integration method
+			if (integrationMethod === "rk4") {
+				updateParticlesRK4();
+			} else {
+				updateParticlesEuler();
+			}
+			
+			// NEW: Handle collisions if enabled
+			if (enableCollisions) {
+				handleCollisions();
+			}
+			
+			// Render particles
+			for (var i = 0; i < currentDots; i++) {
+				renderParticle(i);
+			}
+			
+			pop();
+			
+			// NEW: Performance monitoring and adaptive quality
+			var frameTime = millis() - startTime;
+			frameTimeHistory.push(frameTime);
+			if (frameTimeHistory.length > 30) {
+				frameTimeHistory.shift();
+			}
+			
+			frameCounter++;
+			if (adaptiveQuality && frameCounter % performanceCheckInterval === 0) {
+				adjustQuality();
+			}
+			
+			// NEW: Display performance info
+			displayPerformanceInfo();
+		}
+		
+		// NEW: Runge-Kutta 4th order integration for higher accuracy
+		function updateParticlesRK4() {
+			for (var i = 0; i < currentDots; i++) {
+				px[i] = x[i];
+				py[i] = y[i];
+				pz[i] = z[i];
+				
+				// k1 = f(t, y)
+				var derivs1 = getDerivatives(x[i], y[i], z[i]);
+				k1x[i] = derivs1.dx;
+				k1y[i] = derivs1.dy;
+				k1z[i] = derivs1.dz;
+				
+				// k2 = f(t + dt/2, y + k1*dt/2)
+				var derivs2 = getDerivatives(
+					x[i] + k1x[i] * dt * 0.5,
+					y[i] + k1y[i] * dt * 0.5,
+					z[i] + k1z[i] * dt * 0.5
+				);
+				k2x[i] = derivs2.dx;
+				k2y[i] = derivs2.dy;
+				k2z[i] = derivs2.dz;
+				
+				// k3 = f(t + dt/2, y + k2*dt/2)
+				var derivs3 = getDerivatives(
+					x[i] + k2x[i] * dt * 0.5,
+					y[i] + k2y[i] * dt * 0.5,
+					z[i] + k2z[i] * dt * 0.5
+				);
+				k3x[i] = derivs3.dx;
+				k3y[i] = derivs3.dy;
+				k3z[i] = derivs3.dz;
+				
+				// k4 = f(t + dt, y + k3*dt)
+				var derivs4 = getDerivatives(
+					x[i] + k3x[i] * dt,
+					y[i] + k3y[i] * dt,
+					z[i] + k3z[i] * dt
+				);
+				k4x[i] = derivs4.dx;
+				k4y[i] = derivs4.dy;
+				k4z[i] = derivs4.dz;
+				
+				// Update position using weighted average
+				var dx = (k1x[i] + 2*k2x[i] + 2*k3x[i] + k4x[i]) / 6;
+				var dy = (k1y[i] + 2*k2y[i] + 2*k3y[i] + k4y[i]) / 6;
+				var dz = (k1z[i] + 2*k2z[i] + 2*k3z[i] + k4z[i]) / 6;
+				
+				vx[i] = dx;
+				vy[i] = dy;
+				vz[i] = dz;
+				
+				x[i] += dx * dt;
+				y[i] += dy * dt;
+				z[i] += dz * dt;
+				
+				// NEW: Boundary collision detection
+				if (enableBoundaries) {
+					handleBoundaryCollision(i);
+				}
+				
+				// NEW: Add to spatial grid for collision detection
+				if (enableCollisions) {
+					addToSpatialGrid(i);
+				}
+			}
+		}
+		
+		// NEW: Original Euler integration method
+		function updateParticlesEuler() {
+			for (var i = 0; i < currentDots; i++) {
+				px[i] = x[i];
+				py[i] = y[i];
+				pz[i] = z[i];
+				
+				var derivs = getDerivatives(x[i], y[i], z[i]);
+				nx[i] = derivs.dx;
+				ny[i] = derivs.dy;
+				nz[i] = derivs.dz;
+				
+				vx[i] = nx[i];
+				vy[i] = ny[i];
+				vz[i] = nz[i];
+				
+				x[i] += nx[i] * dt;
+				y[i] += ny[i] * dt;
+				z[i] += nz[i] * dt;
+				
+				// NEW: Boundary collision detection
+				if (enableBoundaries) {
+					handleBoundaryCollision(i);
+				}
+				
+				// NEW: Add to spatial grid for collision detection
+				if (enableCollisions) {
+					addToSpatialGrid(i);
+				}
+			}
+		}
+		
+		// NEW: Extract derivative calculation into separate function
+		function getDerivatives(px, py, pz) {
+			return {
+				dx: py - p*px + o*py*pz,
+				dy: q*py - px*pz + pz,
+				dz: c*px*py - e*pz
+			};
+		}
+		
+		// NEW: Boundary collision detection and response
+		function handleBoundaryCollision(i) {
+			if (x[i] > boundarySize || x[i] < -boundarySize) {
+				vx[i] *= -boundaryBounce;
+				x[i] = constrain(x[i], -boundarySize, boundarySize);
+			}
+			if (y[i] > boundarySize || y[i] < -boundarySize) {
+				vy[i] *= -boundaryBounce;
+				y[i] = constrain(y[i], -boundarySize, boundarySize);
+			}
+			if (z[i] > boundarySize || z[i] < -boundarySize) {
+				vz[i] *= -boundaryBounce;
+				z[i] = constrain(z[i], -boundarySize, boundarySize);
+			}
+		}
+		
+		// NEW: Spatial grid system for efficient collision detection
+		function addToSpatialGrid(i) {
+			var gridX = Math.floor(x[i] / gridSize);
+			var gridY = Math.floor(y[i] / gridSize);
+			var gridZ = Math.floor(z[i] / gridSize);
+			var key = gridX + "," + gridY + "," + gridZ;
+			
+			if (!spatialGrid[key]) {
+				spatialGrid[key] = [];
+			}
+			spatialGrid[key].push(i);
+		}
+		
+		// NEW: Efficient collision detection using spatial grid
+		function handleCollisions() {
+			for (var key in spatialGrid) {
+				var particles = spatialGrid[key];
+				
+				// Check collisions within the same grid cell
+				for (var i = 0; i < particles.length; i++) {
+					for (var j = i + 1; j < particles.length; j++) {
+						checkCollision(particles[i], particles[j]);
+					}
+				}
+				
+				// Check adjacent grid cells to avoid missing collisions at boundaries
+				var coords = key.split(",");
+				var gridX = parseInt(coords[0]);
+				var gridY = parseInt(coords[1]);
+				var gridZ = parseInt(coords[2]);
+				
+				// Check 26 adjacent cells (3x3x3 - 1)
+				for (var dx = -1; dx <= 1; dx++) {
+					for (var dy = -1; dy <= 1; dy++) {
+						for (var dz = -1; dz <= 1; dz++) {
+							if (dx === 0 && dy === 0 && dz === 0) continue;
+							
+							var adjacentKey = (gridX + dx) + "," + (gridY + dy) + "," + (gridZ + dz);
+							if (spatialGrid[adjacentKey]) {
+								var adjacentParticles = spatialGrid[adjacentKey];
+								for (var i = 0; i < particles.length; i++) {
+									for (var j = 0; j < adjacentParticles.length; j++) {
+										checkCollision(particles[i], adjacentParticles[j]);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		// NEW: Check collision between two particles
+		function checkCollision(i, j) {
+			var dx = x[i] - x[j];
+			var dy = y[i] - y[j];
+			var dz = z[i] - z[j];
+			var distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+			
+			if (distance < collisionRadius && distance > 0) {
+				// Normalize collision vector
+				var nx = dx / distance;
+				var ny = dy / distance;
+				var nz = dz / distance;
+				
+				// Relative velocity
+				var dvx = vx[i] - vx[j];
+				var dvy = vy[i] - vy[j];
+				var dvz = vz[i] - vz[j];
+				
+				// Relative velocity in collision normal direction
+				var speed = dvx*nx + dvy*ny + dvz*nz;
+				
+				// Don't resolve if velocities are separating
+				if (speed > 0) return;
+				
+				// Collision impulse (assuming equal mass)
+				var impulse = 2 * speed / 2;
+				
+				// Update velocities
+				vx[i] -= impulse * bounceStrength * nx;
+				vy[i] -= impulse * bounceStrength * ny;
+				vz[i] -= impulse * bounceStrength * nz;
+				vx[j] += impulse * bounceStrength * nx;
+				vy[j] += impulse * bounceStrength * ny;
+				vz[j] += impulse * bounceStrength * nz;
+				
+				// Separate overlapping particles
+				var overlap = collisionRadius - distance;
+				var separation = overlap * 0.5;
+				x[i] += nx * separation;
+				y[i] += ny * separation;
+				z[i] += nz * separation;
+				x[j] -= nx * separation;
+				y[j] -= ny * separation;
+				z[j] -= nz * separation;
+			}
+		}
+		
+		// NEW: Adaptive quality system
+		function adjustQuality() {
+			if (frameTimeHistory.length < 10) return;
+			
+			var avgFrameTime = frameTimeHistory.reduce((a, b) => a + b, 0) / frameTimeHistory.length;
+			var targetFrameTime = 1000 / targetFPS;
+			
+			if (avgFrameTime > targetFrameTime * 1.2 && currentDots > 1000) {
+				// Performance is poor, reduce particle count
+				currentDots = Math.max(1000, currentDots * 0.9);
+				console.log("Reduced particles to: " + currentDots);
+			} else if (avgFrameTime < targetFrameTime * 0.8 && currentDots < dots) {
+				// Performance is good, increase particle count
+				currentDots = Math.min(dots, currentDots * 1.1);
+				console.log("Increased particles to: " + currentDots);
+			}
+		}
+		
+		// NEW: Performance information display
+		function displayPerformanceInfo() {
+			if (frameTimeHistory.length > 0) {
+				var avgFrameTime = frameTimeHistory.reduce((a, b) => a + b, 0) / frameTimeHistory.length;
+				var fps = 1000 / avgFrameTime;
+				
+				fill(0, 0, 0);
+				textAlign(LEFT);
+				textSize(12);
+				text("FPS: " + fps.toFixed(1), 10, 20);
+				text("Particles: " + currentDots, 10, 35);
+				text("Integration: " + integrationMethod.toUpperCase(), 10, 50);
+				text("Collisions: " + (enableCollisions ? "ON" : "OFF"), 10, 65);
+				text("Boundaries: " + (enableBoundaries ? "ON" : "OFF"), 10, 80);
+				text("Adaptive Quality: " + (adaptiveQuality ? "ON" : "OFF"), 10, 95);
+			}
+		}
+		
+		// NEW: Render individual particle (extracted for clarity)
+		function renderParticle(i) {
+			stroke(i%360, 100, 100);
+			
+			// Apply 3D rotation
+			var rotatedCoords = rotate3D(x[i], y[i], z[i], rotationX, rotationY);
+			var currentX = rotatedCoords.x;
+			var currentY = rotatedCoords.y;
+			var currentZ = rotatedCoords.z;
+			
+			var prevRotatedCoords = rotate3D(px[i], py[i], pz[i], rotationX, rotationY);
+			var prevX = prevRotatedCoords.x;
+			var prevY = prevRotatedCoords.y;
+			var prevZ = prevRotatedCoords.z;
+			
+			if (s === 1) {
+				if (per === "xy") {
+					strokeWeight(map(currentZ, -r/3, r/3, 2, 3));
+				} else if (per === "xz") {
+					strokeWeight(map(currentY, -r/3, r/3, 3, 2));
+				} else {
+					strokeWeight(map(currentX, -r/3, r/3, 2, 3));
+				}
+			}
+			
+			if (l === 0) {
+				if (per === "xy") {
+					point(map(currentX, -r, r, -centerX, centerX), map(currentY, -r, r, centerY, -centerY));
+				} else if (per === "xz") {
+					point(map(currentX, -r, r, -centerX, centerX), map(currentZ, -r, r, centerY, -centerY));
+				} else {
+					point(map(currentY, -r, r, -centerX, centerX), map(currentZ, -r, r, centerY, -centerY));
+				}
+			} else {
+				if (per === "xy") {
+					line(map(prevX, -r, r, -centerX, centerX), map(prevY, -r, r, centerY, -centerY), 
+						 map(currentX, -r, r, -centerX, centerX), map(currentY, -r, r, centerY, -centerY));
+				} else if (per === "xz") {
+					line(map(prevX, -r, r, -centerX, centerX), map(prevZ, -r, r, centerY, -centerY), 
+						 map(currentX, -r, r, -centerX, centerX), map(currentZ, -r, r, centerY, -centerY));
+				} else {
+					line(map(prevY, -r, r, -centerX, centerX), map(prevZ, -r, r, centerY, -centerY), 
+						 map(currentY, -r, r, -centerX, centerX), map(currentZ, -r, r, centerY, -centerY));
+				}
+			}
+		}
+
+		function rotate3D(x, y, z, angleX, angleY) {
+			// Rotate around X axis
+			var cosX = cos(angleX);
+			var sinX = sin(angleX);
+			var y1 = y * cosX - z * sinX;
+			var z1 = y * sinX + z * cosX;
+			
+			// Rotate around Y axis
+			var cosY = cos(angleY);
+			var sinY = sin(angleY);
+			var x2 = x * cosY + z1 * sinY;
+			var z2 = -x * sinY + z1 * cosY;
+			
+			return {x: x2, y: y1, z: z2};
+		}
+
+		function mousePressed() {
+			isDragging = true;
+			lastMouseX = mouseX;
+			lastMouseY = mouseY;
+		}
+
+		function mouseReleased() {
+			isDragging = false;
+		}
+
+		function mouseDragged() {
+			if (isDragging) {
+				var deltaX = mouseX - lastMouseX;
+				var deltaY = mouseY - lastMouseY;
+				
+				rotationY += deltaX * 0.01;
+				rotationX += deltaY * 0.01;
+				
+				// Constrain vertical rotation
+				rotationX = constrain(rotationX, -PI/2, PI/2);
+				
+				lastMouseX = mouseX;
+				lastMouseY = mouseY;
+			}
+		}
+
+		function mouseWheel(event) {
+			var zoomFactor = 1 - event.delta * 0.001;
+			zoom *= zoomFactor;
+			zoom = constrain(zoom, 0.1, 5);
+			return false; // Prevent page scrolling
+		}
+
+		function windowResized() {
+			resizeCanvas(windowWidth, windowHeight);
+			centerX = width / 2;
+			centerY = height / 2;
+		}
+		
+		// NEW: Keyboard controls for new features
+		function keyPressed() {
+			switch(key.toLowerCase()) {
+				case 'c':
+					enableCollisions = !enableCollisions;
+					console.log("Collisions: " + (enableCollisions ? "enabled" : "disabled"));
+					break;
+				case 'b':
+					enableBoundaries = !enableBoundaries;
+					console.log("Boundaries: " + (enableBoundaries ? "enabled" : "disabled"));
+					break;
+				case 'm':
+					integrationMethod = (integrationMethod === "euler") ? "rk4" : "euler";
+					console.log("Integration method: " + integrationMethod.toUpperCase());
+					break;
+				case 'a':
+					adaptiveQuality = !adaptiveQuality;
+					console.log("Adaptive quality: " + (adaptiveQuality ? "enabled" : "disabled"));
+					break;
+				case 'r':
+					// Reset particle positions
+					for (var i = 0; i < dots; i++) {
+						x[i] = random(-10, 10);
+						y[i] = random(-10, 10);
+						z[i] = random(-10, 10);
+						vx[i] = 0;
+						vy[i] = 0;
+						vz[i] = 0;
+					}
+					console.log("Particles reset");
+					break;
+				case '=':
+				case '+':
+					currentDots = Math.min(dots, currentDots + 500);
+					console.log("Particles: " + currentDots);
+					break;
+				case '-':
+					currentDots = Math.max(500, currentDots - 500);
+					console.log("Particles: " + currentDots);
+					break;
+			}
+		}
+
+		// function mouseClicked(){
+		// 	save("img_" + month() + '-' + day() + '_' + hour() + '-' + minute() + '-' + second() + ".jpg");
+		// }
+	</script>
+</body>
+</html>
