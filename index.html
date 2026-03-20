@@ -1,32 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title>Dadras Attractor</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
-    <link rel="stylesheet" href="./src/styles/style.css">
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <meta
+    name="description"
+    content="Interactive strange attractor explorer featuring Dadras, Lorenz, Rossler, Chen, Aizawa, Thomas, Halvorsen, Chua, Dequan Li, Rabinovich-Fabrikant, and De Jong systems."
+  />
+  <title>Chaotic Attractor Explorer</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+  <script
+    defer
+    src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"
+  ></script>
+  <link rel="stylesheet" href="./src/styles/style.css" />
+  <script defer src="./src/javascript/app.js"></script>
 </head>
 <body>
-    <!-- 
-      All scripts are currently disabled.
-      First come the numerical integrators, 
-      then the foundational attractors (Lorenz, Rössler, Chen),
-      followed by related variants and newer forms.
-    -->
-    <!-- <script src="./src/javascript/euler_adaptive_attractor.js"></script> -->
-    <!-- <script src="./src/javascript/Runge-Kutta_4th_order_integration.js"></script> -->
+  <main class="app-shell">
+    <aside class="control-panel">
+      <div class="panel-section">
+        <p class="eyebrow">Interactive Visualization</p>
+        <h1>Chaotic Attractor Explorer</h1>
+        <p class="panel-copy">
+          Explore mathematical chaos in a GitHub Pages-friendly static app.
+          Drag to orbit, scroll to zoom, and switch between attractors and
+          rendering modes in real time.
+        </p>
+      </div>
 
-    <!-- <script src="./src/javascript/lorenz_attractor.js"></script> -->
-    <!-- <script src="./src/javascript/rossler_attractor.js"></script> -->
-    <!-- <script src="./src/javascript/chen_attractor.js"></script> -->
+      <div class="panel-section controls-grid">
+        <label class="field">
+          <span>Attractor</span>
+          <select id="attractor-select"></select>
+        </label>
 
-    <!-- <script src="./src/javascript/dejong_attractor.js"></script> -->
-    <!-- <script src="./src/javascript/aizawa_attractor.js"></script> -->
-    <!-- <script src="./src/javascript/thomas_attractor.js"></script> -->
-    <!-- <script src="./src/javascript/halvorsen_attractor.js"></script> -->
+        <label class="field">
+          <span>Projection</span>
+          <select id="projection-select">
+            <option value="xy">XY</option>
+            <option value="xz">XZ</option>
+            <option value="yz">YZ</option>
+          </select>
+        </label>
 
-    <!-- <script src="./src/javascript/rabinovich_fabrikant.js"></script> -->
-    <!-- <script src="./src/javascript/dequan_li_attractor.js"></script> -->
-    <!-- <script src="./src/javascript/chua_attractor.js"></script> -->
+        <label class="field">
+          <span>Particle count</span>
+          <input id="particle-slider" type="range" min="500" max="12000" step="250" />
+          <strong id="particle-value">0</strong>
+        </label>
+
+        <label class="field">
+          <span>Trail length</span>
+          <input id="trail-slider" type="range" min="0" max="0.18" step="0.01" />
+          <strong id="trail-value">0</strong>
+        </label>
+
+        <label class="field">
+          <span>Speed</span>
+          <input id="speed-slider" type="range" min="0.001" max="0.02" step="0.001" />
+          <strong id="speed-value">0</strong>
+        </label>
+
+        <label class="field checkbox-field">
+          <input id="line-mode-toggle" type="checkbox" />
+          <span>Render as lines</span>
+        </label>
+
+        <label class="field checkbox-field">
+          <input id="weight-toggle" type="checkbox" checked />
+          <span>Depth-based stroke</span>
+        </label>
+
+        <label class="field checkbox-field">
+          <input id="auto-rotate-toggle" type="checkbox" />
+          <span>Auto rotate</span>
+        </label>
+      </div>
+
+      <div class="panel-section actions">
+        <button id="reset-button" type="button">Reset particles</button>
+        <button id="randomize-button" type="button">Random attractor</button>
+      </div>
+
+      <div class="panel-section stats">
+        <div><span>Active particles</span><strong id="active-particles">0</strong></div>
+        <div><span>Estimated FPS</span><strong id="fps-value">0</strong></div>
+      </div>
+
+      <div class="panel-section system-info">
+        <h2 id="system-name">System</h2>
+        <p id="system-description"></p>
+      </div>
+    </aside>
+
+    <section class="viewport">
+      <div id="canvas-container" aria-label="Interactive strange attractor canvas"></div>
+      <div class="viewport-hint">
+        Drag to rotate • Scroll to zoom • Use the panel to explore
+      </div>
+    </section>
+  </main>
 </body>
 </html>
